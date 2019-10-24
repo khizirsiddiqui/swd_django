@@ -1857,6 +1857,11 @@ def add_new_students(request):
                     emailID = row[header['INSTITUTE EMAIL ID']].value
                     username = emailID.split('@', 1)[0]
                     password = User.objects.make_random_password()
+                    try:
+                        user = User.objects.get(username=username)
+                        user.delete()
+                    except User.DoesNotExist:
+                        pass
                     user = User.objects.create_user(
                         username=username,
                         email=emailID,
@@ -1865,10 +1870,21 @@ def add_new_students(request):
                     # Date of Birth and Date of Admit
                     # These col values are expected to be in dd-Mon-yy format
                     # For Example: 07-Jan-97
-                    dob = row[header['Stu_DOB']].value
-                    rev_bDay = datetime.strptime(dob, '%d-%b-%y').strftime('%Y-%m-%d')
-                    do_admit = row[header['admit']].value
-                    rev_admit = datetime.strptime(do_admit, '%d-%b-%y').strftime('%Y-%m-%d')
+                    dob = row[header['Stu_DOB']]
+                    if dob.ctype == 1: # XL_CELL_TEXT
+                        rev_bDay = datetime.strptime(dob.value, '%d-%b-%y').strftime('%Y-%m-%d')
+                    elif (dob.ctype == 3): # XL_CELL_DATE
+                        rev_bDay = xlrd.xldate.xldate_as_datetime(dob.value, 0)
+                    else:
+                        rev_bDay = datetime.strptime('01Jan1985', '%d%b%Y')
+
+                    do_admit = row[header['admit']]
+                    if (do_admit.ctype == 1): # XL_CELL_TEXT
+                        rev_admit = datetime.strptime(do_admit.value, '%d-%b-%y').strftime('%Y-%m-%d')
+                    elif do_admit.ctype == 3: # XL_CELL_DATE
+                        rev_admit = xlrd.xldate.xldate_as_datetime(do_admit.value, 0)
+                    else:
+                        rev_admit = datetime.strptime('01Jan1985', '%d%b%Y')
                     
                     student = Student.objects.create(
                         user=user,
